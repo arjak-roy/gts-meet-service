@@ -1,0 +1,26 @@
+# LiveKit Server Configuration (Development)
+# Docs: https://docs.livekit.io/realtime/self-hosting/deployment/
+
+port: 7880
+rtc:
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: false
+  tcp_port: 7881
+
+redis:
+  address: redis:6379
+
+keys:
+  devkey: secret-dev-key-minimum-32-characters-long
+
+logging:
+  level: info
+
+room:
+  auto_create: false
+  max_participants: 500
+  empty_timeout: 600
+
+turn:
+  enabled: false

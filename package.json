@@ -1,0 +1,25 @@
+{
+  "name": "gts-meet-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Online classroom video conferencing service",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "db:generate": "pnpm --filter @gts-meet/api exec prisma generate",
+    "db:push": "pnpm --filter @gts-meet/api exec prisma db push",
+    "db:migrate": "pnpm --filter @gts-meet/api exec prisma migrate dev",
+    "db:studio": "pnpm --filter @gts-meet/api exec prisma studio"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.2"
+  },
+  "packageManager": "pnpm@9.15.4"
+}
+

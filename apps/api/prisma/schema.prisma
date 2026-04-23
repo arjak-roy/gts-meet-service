@@ -1,0 +1,291 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────
+// User & Auth
+// ──────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  INSTRUCTOR
+  TEACHING_ASSISTANT
+  STUDENT
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  avatarUrl    String?  @map("avatar_url")
+  role         UserRole @default(STUDENT)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  createdRooms   Room[]            @relation("RoomCreator")
+  participations RoomParticipant[]
+  polls          Poll[]
+  pollVotes      PollVote[]
+  questions      QnAQuestion[]     @relation("QuestionAsker")
+  answers        QnAQuestion[]     @relation("QuestionAnswerer")
+  qnaUpvotes     QnAUpvote[]
+  chatMessages   ChatMessage[]
+  lobbyRequests  LobbyRequest[]
+
+  @@map("users")
+}
+
+// ──────────────────────────────────────────────
+// Room
+// ──────────────────────────────────────────────
+
+enum RoomType {
+  ONE_ON_ONE
+  SMALL_CLASS
+  MEDIUM_CLASS
+  LARGE_LECTURE
+  WEBINAR
+}
+
+enum RoomStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+}
+
+model Room {
+  id               String     @id @default(uuid())
+  title            String
+  description      String?
+  type             RoomType   @default(SMALL_CLASS)
+  status           RoomStatus @default(SCHEDULED)
+  livekitRoomName  String     @unique @map("livekit_room_name")
+  maxParticipants  Int        @map("max_participants")
+  maxPublishers    Int        @map("max_publishers")
+  features         Json       @default("{}")
+  scheduledAt      DateTime?  @map("scheduled_at")
+  startedAt        DateTime?  @map("started_at")
+  endedAt          DateTime?  @map("ended_at")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  createdBy   String @map("created_by")
+  creator     User   @relation("RoomCreator", fields: [createdBy], references: [id])
+
+  participants         RoomParticipant[]
+  polls                Poll[]
+  questions            QnAQuestion[]
+  chatMessages         ChatMessage[]
+  recordings           Recording[]
+  whiteboardSnapshots  WhiteboardSnapshot[]
+  lobbyRequests        LobbyRequest[]
+
+  @@index([status])
+  @@index([createdBy])
+  @@map("rooms")
+}
+
+// ──────────────────────────────────────────────
+// Room Participant
+// ──────────────────────────────────────────────
+
+enum ParticipantRole {
+  INSTRUCTOR
+  TEACHING_ASSISTANT
+  STUDENT
+}
+
+model RoomParticipant {
+  id       String          @id @default(uuid())
+  roomId   String          @map("room_id")
+  userId   String          @map("user_id")
+  role     ParticipantRole @default(STUDENT)
+  joinedAt DateTime        @default(now()) @map("joined_at")
+  leftAt   DateTime?       @map("left_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, userId, joinedAt])
+  @@index([roomId])
+  @@index([userId])
+  @@map("room_participants")
+}
+
+// ──────────────────────────────────────────────
+// Lobby / Waiting Room
+// ──────────────────────────────────────────────
+
+enum LobbyRequestStatus {
+  PENDING
+  ADMITTED
+  REJECTED
+}
+
+model LobbyRequest {
+  id          String             @id @default(uuid())
+  roomId      String             @map("room_id")
+  userId      String             @map("user_id")
+  status      LobbyRequestStatus @default(PENDING)
+  requestedAt DateTime           @default(now()) @map("requested_at")
+  decidedAt   DateTime?          @map("decided_at")
+  decidedById String?            @map("decided_by_id")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, userId])
+  @@index([roomId, status, requestedAt])
+  @@map("lobby_requests")
+}
+
+// ──────────────────────────────────────────────
+// Polls
+// ──────────────────────────────────────────────
+
+enum PollStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+model Poll {
+  id        String     @id @default(uuid())
+  roomId    String     @map("room_id")
+  createdBy String     @map("created_by")
+  question  String
+  status    PollStatus @default(DRAFT)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  room    Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  creator User         @relation(fields: [createdBy], references: [id])
+  options PollOption[]
+  votes   PollVote[]
+
+  @@index([roomId])
+  @@map("polls")
+}
+
+model PollOption {
+  id        String @id @default(uuid())
+  pollId    String @map("poll_id")
+  text      String
+  sortOrder Int    @default(0) @map("sort_order")
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@map("poll_options")
+}
+
+model PollVote {
+  id       String   @id @default(uuid())
+  pollId   String   @map("poll_id")
+  optionId String   @map("option_id")
+  userId   String   @map("user_id")
+  votedAt  DateTime @default(now()) @map("voted_at")
+
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id])
+
+  @@unique([pollId, userId])
+  @@map("poll_votes")
+}
+
+// ──────────────────────────────────────────────
+// Q&A
+// ──────────────────────────────────────────────
+
+model QnAQuestion {
+  id          String    @id @default(uuid())
+  roomId      String    @map("room_id")
+  askedById   String    @map("asked_by")
+  content     String
+  isAnswered  Boolean   @default(false) @map("is_answered")
+  answerText  String?   @map("answer_text")
+  answeredById String?  @map("answered_by")
+  upvoteCount Int       @default(0) @map("upvote_count")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  room      Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  askedBy   User         @relation("QuestionAsker", fields: [askedById], references: [id])
+  answeredBy User?       @relation("QuestionAnswerer", fields: [answeredById], references: [id])
+  upvotes   QnAUpvote[]
+
+  @@index([roomId, upvoteCount(sort: Desc)])
+  @@map("qna_questions")
+}
+
+model QnAUpvote {
+  id         String @id @default(uuid())
+  questionId String @map("question_id")
+  userId     String @map("user_id")
+
+  question QnAQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user     User        @relation(fields: [userId], references: [id])
+
+  @@unique([questionId, userId])
+  @@map("qna_upvotes")
+}
+
+// ──────────────────────────────────────────────
+// Chat
+// ──────────────────────────────────────────────
+
+model ChatMessage {
+  id     String   @id @default(uuid())
+  roomId String   @map("room_id")
+  userId String   @map("user_id")
+  content String
+  sentAt DateTime @default(now()) @map("sent_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([roomId, sentAt])
+  @@map("chat_messages")
+}
+
+// ──────────────────────────────────────────────
+// Recordings
+// ──────────────────────────────────────────────
+
+model Recording {
+  id              String   @id @default(uuid())
+  roomId          String   @map("room_id")
+  storageKey      String   @map("storage_key")
+  format          String   @default("mp4")
+  durationSeconds Int?     @map("duration_seconds")
+  sizeBytes       BigInt?  @map("size_bytes")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@map("recordings")
+}
+
+// ──────────────────────────────────────────────
+// Whiteboard
+// ──────────────────────────────────────────────
+
+model WhiteboardSnapshot {
+  id        String   @id @default(uuid())
+  roomId    String   @map("room_id")
+  yjsState  Bytes    @map("yjs_state")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@map("whiteboard_snapshots")
+}
