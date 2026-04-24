@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { GuestLoginDto } from './dto/guest-login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -17,6 +18,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('guest')
+  @HttpCode(HttpStatus.OK)
+  async guest(@Body() dto: GuestLoginDto) {
+    return this.authService.guestLogin(dto.name);
   }
 
   @Post('refresh')

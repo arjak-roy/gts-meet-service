@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import { randomUUID, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -75,6 +76,36 @@ export class AuthService {
     }
 
     // Generate tokens
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        avatarUrl: user.avatarUrl,
+        createdAt: user.createdAt.toISOString(),
+      },
+      ...tokens,
+    };
+  }
+
+  async guestLogin(name: string) {
+    const uuid = randomUUID();
+    const email = `guest-${uuid}@gts-meet.local`;
+    const password = randomBytes(16).toString('hex');
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name,
+        role: UserRole.STUDENT,
+      },
+    });
+
     const tokens = await this.generateTokens(user.id, user.email, user.role);
 
     return {

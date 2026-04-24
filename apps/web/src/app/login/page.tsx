@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams?.get("redirect");
   const { login } = useAuthStore();
 
   const [email, setEmail] = useState("");
@@ -20,7 +22,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push("/dashboard");
+      router.push(redirect || "/dashboard");
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
@@ -90,7 +92,7 @@ export default function LoginPage() {
         <div className="auth-footer">
           <p>
             Don&apos;t have an account?{" "}
-            <a href="/register" className="auth-link">
+            <a href={"/register" + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : "")} className="auth-link">
               Create one
             </a>
           </p>
@@ -223,5 +225,13 @@ export default function LoginPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--color-bg-primary)' }}>Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

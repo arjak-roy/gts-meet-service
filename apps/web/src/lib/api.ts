@@ -107,6 +107,19 @@ class ApiClient {
     return result;
   }
 
+  async guestLogin(name: string) {
+    const result = await this.request<{
+      user: any;
+      accessToken: string;
+      refreshToken: string;
+    }>('/auth/guest', {
+      method: 'POST',
+      body: { name },
+    });
+    this.setTokens(result.accessToken, result.refreshToken);
+    return result;
+  }
+
   async register(name: string, email: string, password: string, role?: string) {
     const result = await this.request<{
       user: any;

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams?.get("redirect");
   const { register } = useAuthStore();
 
   const [name, setName] = useState("");
@@ -22,7 +24,7 @@ export default function RegisterPage() {
 
     try {
       await register(name, email, password, role);
-      router.push("/dashboard");
+      router.push(redirect || "/dashboard");
     } catch (err: any) {
       setError(err.message || "Registration failed");
     } finally {
@@ -127,7 +129,7 @@ export default function RegisterPage() {
         <div className="auth-footer">
           <p>
             Already have an account?{" "}
-            <a href="/login" className="auth-link">
+            <a href={"/login" + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : "")} className="auth-link">
               Sign in
             </a>
           </p>
@@ -298,5 +300,13 @@ export default function RegisterPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--color-bg-primary)' }}>Loading...</div>}>
+      <RegisterForm />
+    </Suspense>
   );
 }

@@ -32,7 +32,7 @@ function MyVideoGrid() {
 export default function RoomPage({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = use(params);
   const router = useRouter();
-  const { user, loadUser, isAuthenticated, isLoading: authLoading } = useAuthStore();
+  const { user, loadUser, isAuthenticated, isLoading: authLoading, guestLogin } = useAuthStore();
   const { currentRoom, livekitToken, wsTicket, participantRole, joinStatus, lobby, joinRoom, leaveRoom, clearRoomState } = useRoomStore();
   const { messages, addMessage, setMessages, clearMessages } = useChatStore();
 
@@ -52,6 +52,10 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [lobbyQueue, setLobbyQueue] = useState<any[]>([]);
   const [lobbyBusyId, setLobbyBusyId] = useState<string | null>(null);
+
+  const [guestName, setGuestName] = useState("");
+  const [isGuestSubmitting, setIsGuestSubmitting] = useState(false);
+  const [guestError, setGuestError] = useState("");
 
   const socketRef = useRef<Socket | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -157,12 +161,6 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
   useEffect(() => {
     loadUser();
   }, [loadUser]);
-
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push("/login");
-    }
-  }, [isAuthenticated, authLoading, router]);
 
   // Join room
   useEffect(() => {
@@ -370,6 +368,75 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
       setSharing(false);
     }
   };
+
+  if (!authLoading && !isAuthenticated) {
+    const handleGuestJoin = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setGuestError("");
+      setIsGuestSubmitting(true);
+      try {
+        await guestLogin(guestName);
+      } catch (err: any) {
+        setGuestError(err.message || "Failed to join as guest");
+        setIsGuestSubmitting(false);
+      }
+    };
+
+    return (
+      <div className="auth-page">
+        <div className="auth-bg-glow" />
+        <div className="auth-container animate-scaleIn">
+          <div className="auth-logo">
+            <h1 className="auth-title">Join Meeting</h1>
+            <p className="auth-subtitle">Enter your name to join as a guest</p>
+          </div>
+          <form onSubmit={handleGuestJoin} className="auth-form">
+            <div className="form-group">
+              <label htmlFor="guestName">Your Name</label>
+              <input
+                id="guestName"
+                type="text"
+                className="input"
+                placeholder="John Doe"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                required
+                minLength={2}
+              />
+            </div>
+            {guestError && <div className="auth-error">{guestError}</div>}
+            <button type="submit" className="btn-primary auth-submit" disabled={isGuestSubmitting}>
+              {isGuestSubmitting ? "Joining..." : "Join as Guest"}
+            </button>
+          </form>
+          <div className="auth-footer">
+            <p>
+              Already have an account?{" "}
+              <a href={`/login?redirect=${encodeURIComponent("/room/" + roomId)}`} className="auth-link">
+                Sign in
+              </a>
+            </p>
+          </div>
+        </div>
+        <style jsx>{`
+          .auth-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--gradient-dark); position: relative; overflow: hidden; }
+          .auth-bg-glow { position: absolute; top: -30%; left: 50%; transform: translateX(-50%); width: 600px; height: 600px; background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%); pointer-events: none; }
+          .auth-container { position: relative; width: 100%; max-width: 420px; padding: 48px 40px; background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-xl); backdrop-filter: blur(24px); box-shadow: var(--shadow-lg); }
+          .auth-logo { text-align: center; margin-bottom: 36px; }
+          .auth-title { font-size: 28px; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin: 0 0 4px; }
+          .auth-subtitle { font-size: 14px; color: var(--color-text-secondary); margin: 0; }
+          .auth-form { display: flex; flex-direction: column; gap: 20px; }
+          .form-group { display: flex; flex-direction: column; gap: 6px; }
+          .form-group label { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); }
+          .auth-error { padding: 10px 14px; font-size: 13px; color: var(--color-error); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: var(--radius-sm); }
+          .auth-submit { width: 100%; margin-top: 4px; padding: 14px; font-size: 15px; }
+          .auth-footer { text-align: center; margin-top: 24px; font-size: 13px; color: var(--color-text-muted); }
+          .auth-link { color: var(--color-primary); text-decoration: none; font-weight: 600; }
+          .auth-link:hover { color: var(--color-primary-hover); }
+        `}</style>
+      </div>
+    );
+  }
 
   if (joinError) {
     return (
