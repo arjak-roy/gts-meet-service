@@ -109,11 +109,11 @@ export function useYjsStore({
       { source: 'user', scope: 'document' },
     );
 
-    provider.on('status', (event: { status: 'connected' | 'disconnected' }) => {
+    provider.on('status', (event: { connected: boolean }) => {
       setStoreWithStatus((prev) => ({
         ...prev,
         status: 'ready',
-        connectionStatus: event.status === 'connected' ? 'online' : 'offline',
+        connectionStatus: event.connected ? 'online' : 'offline',
       }));
     });
 
